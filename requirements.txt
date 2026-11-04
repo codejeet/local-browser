@@ -1,0 +1,3 @@
+# Python 3.11+; tested with aiohttp 3.14.1 and mcp 1.28.1.
+aiohttp>=3.14.1,<4
+mcp>=1.28.1,<2

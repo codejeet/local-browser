@@ -1,0 +1,26 @@
+# Local credentials and generated browser connection
+extension/connection.js
+config.json
+*.local.json
+credentials*
+secrets*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Browser data and generated artifacts
+cache/
+screenshots/
+*.png
+*.log
+
+# Python and Node environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+.DS_Store

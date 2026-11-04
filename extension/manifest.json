@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Thrembo Local Browser",
+  "version": "1.0.0",
+  "description": "Connect your local Chrome to Hermes through your authenticated local-browser relay.",
+  "minimum_chrome_version": "135",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyLNzQGkfgWcTOqdosLJS3wWCYyyGUBw7wIgzVKLYkhwe4TRj09YkGQbN4q/OshbBE1y+BxO6fNUUMi/EaSjHuj63EUbjwHX5UNiUD/3KdGdZibd3zpjJos+O5RpGYuuRu11QznXBjDn1V6gf2TWySE80iILYG8nJtmfsUKFwis3E8IApt51u1dO0d4ROxOnz7FQKtsowsEZsjurlK6M/QX1d2UKlOkCoDHoc52P3lgLgTbEEX2lVcOAsNn1xSDVrFFPatz0YwG77X0ksupXF/NlEhoiTxDnU6YDrDnWB03P/+vtRKAdnBv8CKMRAXZMzK5+/6zswmZhtWFTHGQi7QQIDAQAB",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "userScripts",
+    "storage",
+    "alarms",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Thrembo Local Browser",
+    "default_popup": "popup.html"
+  }
+}

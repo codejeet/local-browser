@@ -1,0 +1,3 @@
+-r requirements.txt
+# Python tests use the standard-library unittest runner.
+# JavaScript tests: npm ci && node --test tests/*.test.cjs
