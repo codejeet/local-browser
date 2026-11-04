@@ -21,11 +21,11 @@ Resolve ordinary paths and dependencies yourself. Ask the user only for facts yo
 4. For a remote browser, inspect `tailscale serve status`, select an unused HTTPS port, and configure private Serve to proxy the loopback relay. Preserve existing Serve routes. The browser host must be on the same tailnet and able to reach that URL.
 5. Run `python setup.py --relay-url URL`, adding `--port` or `--config` if needed. Let the script generate and preserve credentials. Do not print token values or paste them into chat.
 6. Start `relay.py`, passing `--config` when using a custom path. Verify the listener and the client's `status` response.
-7. Copy the complete `extension/` folder to a permanent location on the browser host through a private file-transfer route. Include generated `connection.js`; leave the operator config on the relay host. Never publish the generated extension folder as a public artifact.
-8. Load the folder through `chrome://extensions` in the intended profile. Enable Developer mode and Allow User Scripts. Use an authorized desktop interaction tool if available; otherwise give the user the short sequence from the README.
+7. For an unpacked install, copy `extension/` to a permanent location on the browser host. Pair through the popup using the private `pairing.json` from setup. A legacy `connection.js` is also supported and imported once; keep it out of public artifacts. For a signed store install, use its actual popup Extension ID with `setup.py --extension-id ID`, and import the generated pairing file. Keep operator credentials on the relay host.
+8. For unpacked installs, load the folder at `chrome://extensions` with Developer mode enabled. Open the popup, import `pairing.json`, and click Connect my agent. Enable Allow User Scripts on Chrome 138+ for custom JavaScript; Chrome 135–137 uses Developer mode. Use authorized desktop tools when available.
 9. Confirm that `client.py status` reports `connected: true` and `client.py call tabs` reaches the intended profile.
 
-The extension's public manifest key gives it a stable ID. A fresh setup script calculates that ID automatically. Only one extension can connect to a relay at once.
+Unpacked source installs use the public manifest key for a stable ID. Signed Web Store builds use their assigned ID instead. Setup validates the exact ID; deliberate existing-ID changes require `--replace-extension-id`. Restart only the affected relay after changing its config. One extension can connect to each relay.
 
 ## Register MCP
 
@@ -57,4 +57,4 @@ Report the project path, extension location, config path, how the relay starts a
 
 ## Maintenance
 
-Generated `connection.js` and the relay config are private installation state. Keep them out of commits and public archives. A source update alone does not update the unpacked extension on a separate browser computer: copy the updated extension files while preserving the intended connection settings, then reload it in Chrome. Restart only the relay if its Python code changed.
+Generated `connection.js`, `pairing.json` and the relay config are private installation state. Connection settings now live in Chrome local extension storage. Use the popup to change them; editing a legacy file does not replace an already migrated connection. Keep them out of commits and public archives. A source update alone does not update the unpacked extension on a separate browser computer: copy the updated extension files while preserving the intended connection settings, then reload it in Chrome. Restart only the relay if its Python code changed.

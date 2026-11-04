@@ -64,6 +64,69 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE(self.config.parent.stat().st_mode), 0o700)
 
+    def test_store_id_without_manifest_key_produces_private_pairing(self):
+        manifest = self.release / 'extension/manifest.json'
+        values = json.loads(manifest.read_text())
+        values.pop('key', None)
+        manifest.write_text(json.dumps(values))
+        store_id = 'abcdefghijklmnop' * 2
+        result = self.fresh('--extension-id', store_id)
+        config = json.loads(self.config.read_text())
+        pairing = self.config.with_name('pairing.json')
+        self.assertEqual(config['extension_id'], store_id)
+        self.assertEqual(json.loads(pairing.read_text()), {
+            'url': 'ws://127.0.0.1:18210/extension', 'token': config['extension_token']})
+        self.assertEqual(stat.S_IMODE(pairing.stat().st_mode), 0o600)
+        self.assertFalse(self.connection.exists())
+        self.assertIn(str(pairing), result.stdout)
+        for key in ('extension_token', 'operator_token'):
+            self.assertNotIn(config[key], result.stdout + result.stderr)
+
+    def test_legacy_setup_also_writes_pairing_and_updates_it_on_rerun(self):
+        self.fresh()
+        pairing = self.config.with_name('pairing.json')
+        self.assertEqual(json.loads(pairing.read_text()), self.connection_data())
+        pairing.chmod(0o644)
+        self.run_setup('--relay-url', 'wss://relay.example.com/extension')
+        self.assertEqual(json.loads(pairing.read_text()), self.connection_data())
+        self.assertEqual(stat.S_IMODE(pairing.stat().st_mode), 0o600)
+
+    def test_store_identity_change_requires_explicit_replace_and_preserves_tokens(self):
+        self.fresh()
+        config = json.loads(self.config.read_text())
+        store_id = 'a' * 32
+        self.run_setup('--relay-url', 'ws://localhost/extension', '--extension-id', store_id, success=False)
+        self.assertEqual(json.loads(self.config.read_text()), config)
+        self.fresh('--extension-id', store_id, '--replace-extension-id')
+        updated = json.loads(self.config.read_text())
+        self.assertEqual(updated['extension_id'], store_id)
+        for key in ('extension_token', 'operator_token'):
+            self.assertEqual(updated[key], config[key])
+        self.fresh('--extension-id', store_id)
+        self.assertEqual(json.loads(self.config.read_text()), updated)
+
+    def test_store_id_and_replace_arguments_are_validated_before_writes(self):
+        for identity in ('', 'a' * 31, 'a' * 33, 'z' * 32, 'A' * 32, 'chrome-extension://' + 'a' * 32):
+            self.run_setup('--relay-url', 'ws://localhost/extension', '--extension-id', identity, success=False)
+            self.assertFalse(self.config.exists())
+        self.run_setup('--relay-url', 'ws://localhost/extension', '--replace-extension-id', success=False)
+        self.assertFalse(self.config.exists())
+
+    @unittest.skipUnless(os.name == 'posix', 'POSIX symlinks')
+    def test_pairing_symlink_is_rejected_before_config_writes(self):
+        self.config.parent.mkdir(parents=True)
+        target = self.root / 'unrelated'
+        target.write_text('unchanged')
+        self.config.with_name('pairing.json').symlink_to(target)
+        self.run_setup('--relay-url', 'ws://localhost/extension', success=False)
+        self.assertFalse(self.config.exists())
+        self.assertEqual(target.read_text(), 'unchanged')
+
+    def test_pairing_cannot_be_config_target(self):
+        pairing = self.root / 'pairing.json'
+        self.run_setup('--relay-url', 'ws://localhost/extension', '--config', str(pairing), success=False)
+        self.assertFalse(pairing.exists())
+
     def test_rerun_preserves_tokens_extra_fields_and_port_updates_url(self):
         self.fresh('--port', '19321')
         config = json.loads(self.config.read_text())

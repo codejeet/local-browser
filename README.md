@@ -6,6 +6,12 @@ Local Browser connects a Chrome extension to an agent through a small relay and 
 
 Built for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Other agents can connect through a standard MCP stdio configuration.
 
+![Local Browser connected to an agent](docs/store/screenshot-connected.png)
+
+**Install now:** use the [unpacked extension setup](#manual-setup) below. The Chrome Web Store release is being prepared; a store install link will appear here when it is available.
+
+You need the small Python relay and MCP connection as well as the Chrome extension. [Privacy policy](docs/privacy.md) · [Setup guide](docs/agent-setup.md)
+
 ## Set it up with your agent
 
 Copy this prompt into an agent that has terminal access to the computer where the relay will run:
@@ -72,7 +78,7 @@ Run the MCP server and relay on the **same host**. Chrome can run there too, or 
 **On the browser computer:**
 
 - Chrome **135 or newer**. A current stable release is recommended.
-- Permission to load an unpacked extension and enable **Allow User Scripts**.
+- Permission to load an unpacked extension. For custom JavaScript, enable **Allow User Scripts** on Chrome 138+; Chrome 135–137 uses **Developer mode**.
 - The Chrome profile you want the agent to use, with Chrome kept running during tasks.
 
 **For separate computers:** Tailscale on both hosts, signed into the same tailnet, with HTTPS certificates enabled for Tailscale Serve. You will need permission to configure Serve on the relay host.
@@ -130,10 +136,18 @@ Use **Serve**, which is private to your tailnet. Keep the relay bound to loopbac
 **What setup creates:**
 
 - A private relay configuration at `~/.hermes/local-browser/config.json`, or under `$HERMES_HOME/local-browser/` when that variable is set.
-- `extension/connection.js`, containing the WebSocket URL and the extension's credential.
+- A private `pairing.json` beside the relay config. Import this file in the extension popup to connect without editing code.
+- `extension/connection.js` for compatibility with existing unpacked installs. Store-ID setup skips this legacy file.
 - Two independent credentials: one for the extension and one for the operator client. Only the extension credential is copied to the browser computer.
 
-The extension ID is derived from the public key in `extension/manifest.json`. Setup does not require you to find and paste an ID manually. Rerunning setup reuses existing valid credentials and can update the connection URL.
+For an unpacked source install, the extension ID is derived from the public key in `extension/manifest.json`. Rerunning setup reuses valid credentials. For a signed Web Store install, use the actual **Extension ID** shown in its popup:
+
+```bash
+python setup.py --relay-url ws://127.0.0.1:18210/extension \
+  --extension-id YOUR_32_CHARACTER_EXTENSION_ID
+```
+
+When deliberately moving an existing relay to a different extension ID, add `--replace-extension-id`, then restart that relay. This preserves credentials while keeping exact origin checks.
 
 To choose another configuration path or local relay port:
 
@@ -160,15 +174,18 @@ For a persistent Linux service, use the [systemd instructions](docs/service.md) 
 
 ### 4. Load the Chrome extension
 
-If Chrome is on another computer, privately copy the entire **`extension/` folder**, including the generated `connection.js`, to that computer. Keep it in a permanent location. The relay config and Python virtual environment stay on the relay host.
+If Chrome is on another computer, copy the **`extension/` folder** to a permanent location there. You may omit generated `connection.js` and instead transfer the private `pairing.json` file separately. The relay config and Python virtual environment stay on the relay host.
 
 1. Open `chrome://extensions` in the intended Chrome profile.
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the `extension/` folder containing `manifest.json`.
-4. Open the extension's **Details** and enable **Allow User Scripts**. The exact control depends on your Chrome version; keep Developer mode enabled for the unpacked extension.
-5. Open the extension popup. Confirm it is connected and that user scripts are enabled.
+4. Open the extension popup. Click **Import pairing file**, choose the private `pairing.json` from setup, then click **Connect my agent**. You can also enter the relay URL and pairing token manually. A valid legacy `connection.js` is imported once automatically.
+5. For custom JavaScript, open **Details** and enable **Allow User Scripts** on Chrome 138+. On Chrome 135–137, Developer mode enables the API. Reading pages, filling forms and taking screenshots do not require this toggle.
+6. Confirm the popup says **Connected to your agent**.
 
-After changing extension files or replacing `connection.js`, click **Reload** on its card at `chrome://extensions`. Keep only one instance of this extension connected to a relay.
+![Local Browser connection setup](docs/store/screenshot-setup.png)
+
+After changing extension files, click **Reload** at `chrome://extensions`. Connection settings persist in this Chrome profile. To change a relay or token, use **Connection settings** in the popup; a legacy file is not re-imported after pairing. Keep one extension connected to each relay.
 
 ### 5. Check the connection
 
@@ -282,18 +299,18 @@ This extension gives the connected agent access to your signed-in browser. Conne
 
 The relay authenticates operator requests and extension connections separately. It accepts the configured extension origin, binds only to loopback, and does not log command bodies or page results. The extension handles requested commands rather than collecting a continuous browsing history. Page content and screenshots returned by a tool become available to the agent and may be retained by the agent's own logs or model provider.
 
-`<all_urls>`, `tabs`, `scripting`, `userScripts`, and `webNavigation` support page access, tab management, JavaScript execution, and frame inspection. `storage` saves the pause setting; `alarms` supports reconnection. There is no `debugger` permission.
+`<all_urls>`, `tabs`, `scripting`, `userScripts`, and `webNavigation` support page access, tab management, JavaScript execution, and frame inspection. `storage` saves the connection and pause settings; `alarms` supports reconnection. There is no `debugger` permission.
 
-Keep `config.json` and generated `extension/connection.js` private. The repository ignores generated credentials, caches, and screenshots. The manifest's `key` is a **public key** that keeps the extension ID stable, not an authentication secret.
+Keep `config.json`, `pairing.json` and generated `extension/connection.js` private. The repository ignores generated credentials, caches, and screenshots. The manifest's `key` is a **public key** that keeps the extension ID stable, not an authentication secret.
 
 Use **Pause** in the popup to stop new commands. Disable the extension or stop the relay to disconnect it. Commands already executing may finish. MCP screenshots remain in the private cache until you remove them.
 
 ## Troubleshooting
 
-- **Extension is disconnected:** Check that the relay is running, the generated `connection.js` is present, and its URL matches your topology. For remote Chrome, check Tailscale and `tailscale serve status`. Then reload the extension or use **Reconnect**.
+- **Extension is disconnected:** Check that the relay is running and the popup's connection URL matches your topology. Import `pairing.json` or re-enter the pairing details if needed. For remote Chrome, check Tailscale and `tailscale serve status`. Then reload the extension or use **Reconnect**.
 - **`Connection refused` or relay unavailable:** Start `relay.py` with the same config and local port used by the client. Confirm the MCP process runs on the relay host.
 - **User scripts are unavailable:** Enable **Allow User Scripts** in the extension's Chrome details, update Chrome if needed, and reload the extension.
-- **Invalid extension origin:** Ensure setup used the manifest that you loaded. If you changed the manifest key, regenerate the configuration for that identity rather than weakening origin validation.
+- **Invalid extension origin:** Use the actual Extension ID from the popup with `setup.py --extension-id`. If deliberately replacing an existing identity, add `--replace-extension-id` and restart the relay; keep origin validation enabled.
 - **Another extension is already connected:** Pause or disable the duplicate copy in the other profile or computer. Each relay accepts one connection.
 - **Stale element ref:** Take a new snapshot and use its references. A selector must match exactly one element.
 - **Screenshot needs an active tab:** Call `activate`, then `screenshot`. A tab switch during capture causes the image to be discarded.
