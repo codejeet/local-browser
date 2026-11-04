@@ -8,7 +8,7 @@ Built for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Other ag
 
 ![Local Browser connected to an agent](docs/store/screenshot-connected.png)
 
-**Install now:** use the [unpacked extension setup](#manual-setup) below. The Chrome Web Store release is being prepared; a store install link will appear here when it is available.
+**Install now:** use the [unpacked extension setup](#manual-setup) below. The Chrome Web Store release has been submitted and is pending Google's review. A store install link will appear here once it is published.
 
 You need the small Python relay and MCP connection as well as the Chrome extension. [Privacy policy](docs/privacy.md) · [Setup guide](docs/agent-setup.md)
 
