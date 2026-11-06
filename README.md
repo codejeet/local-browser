@@ -2,13 +2,13 @@
 
 Let your AI agent work in the Chrome browser you already use, with your existing tabs and signed-in accounts.
 
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/local-browser-ai-browser/aamifgeomffmmmdbkkdmiikemmeaihho)**, then [connect your agent](#manual-setup) using the free Python relay and MCP server.
+
 Local Browser connects a Chrome extension to an agent through a small relay and an MCP server. The agent can read pages, fill forms, click buttons, run JavaScript, and take screenshots. It uses Chrome extension APIs, with no CDP connection or remote-debugging port.
 
 Built for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Other agents can connect through a standard MCP stdio configuration.
 
 ![Local Browser connected to an agent](docs/store/screenshot-connected.png)
-
-**Install now:** use the [unpacked extension setup](#manual-setup) below. The Chrome Web Store release has been submitted and is pending Google's review. A store install link will appear here once it is published.
 
 You need the small Python relay and MCP connection as well as the Chrome extension. [Privacy policy](docs/privacy.md) · [Setup guide](docs/agent-setup.md)
 
@@ -26,8 +26,10 @@ the agent run on the same computer. Use loopback for a same-computer setup;
 for separate computers, use private Tailscale Serve with WSS.
 
 Install dependencies in a dedicated Python virtual environment, generate local
-credentials without displaying them, load the extension into my intended Chrome
-profile, and register the MCP server in my agent's configuration. Preserve my
+credentials without displaying them, install the Chrome Web Store extension
+(ID aamifgeomffmmmdbkkdmiikemmeaihho) in my intended Chrome profile, and use
+setup.py --extension-id aamifgeomffmmmdbkkdmiikemmeaihho with the chosen relay URL.
+Register the MCP server in my agent's configuration. Preserve my
 other MCP entries and any existing browser connection. Guide me through Chrome
 steps that require my interaction.
 
@@ -78,7 +80,7 @@ Run the MCP server and relay on the **same host**. Chrome can run there too, or 
 **On the browser computer:**
 
 - Chrome **135 or newer**. A current stable release is recommended.
-- Permission to load an unpacked extension. For custom JavaScript, enable **Allow User Scripts** on Chrome 138+; Chrome 135–137 uses **Developer mode**.
+- Permission to install the Chrome Web Store extension (or load an unpacked development copy). For custom JavaScript, enable **Allow User Scripts** on Chrome 138+; Chrome 135–137 uses **Developer mode**.
 - The Chrome profile you want the agent to use, with Chrome kept running during tasks.
 
 **For separate computers:** Tailscale on both hosts, signed into the same tailnet, with HTTPS certificates enabled for Tailscale Serve. You will need permission to configure Serve on the relay host.
@@ -106,7 +108,8 @@ All following shell examples run from this directory with the virtual environmen
 **Chrome and the relay on the same computer:**
 
 ```bash
-python setup.py --relay-url ws://127.0.0.1:18210/extension
+python setup.py --relay-url ws://127.0.0.1:18210/extension \
+  --extension-id aamifgeomffmmmdbkkdmiikemmeaihho
 ```
 
 This uses loopback only. If using Windows Chrome with a WSL relay, check that Windows can reach the WSL loopback listener. If localhost forwarding is unavailable, use the separate-computer path below.
@@ -128,7 +131,8 @@ tailscale serve --bg --https=9456 http://127.0.0.1:18210
 Use the hostname shown by Serve, replacing `your-relay.your-tailnet.ts.net` below:
 
 ```bash
-python setup.py --relay-url wss://your-relay.your-tailnet.ts.net:9456/extension
+python setup.py --relay-url wss://your-relay.your-tailnet.ts.net:9456/extension \
+  --extension-id aamifgeomffmmmdbkkdmiikemmeaihho
 ```
 
 Use **Serve**, which is private to your tailnet. Keep the relay bound to loopback. The Chrome computer must be able to reach the Serve URL through Tailscale.
@@ -140,12 +144,7 @@ Use **Serve**, which is private to your tailnet. Keep the relay bound to loopbac
 - `extension/connection.js` for compatibility with existing unpacked installs. Store-ID setup skips this legacy file.
 - Two independent credentials: one for the extension and one for the operator client. Only the extension credential is copied to the browser computer.
 
-For an unpacked source install, the extension ID is derived from the public key in `extension/manifest.json`. Rerunning setup reuses valid credentials. For a signed Web Store install, use the actual **Extension ID** shown in its popup:
-
-```bash
-python setup.py --relay-url ws://127.0.0.1:18210/extension \
-  --extension-id YOUR_32_CHARACTER_EXTENSION_ID
-```
+The commands above pair the relay to the published Chrome Web Store extension, **`aamifgeomffmmmdbkkdmiikemmeaihho`**. Rerunning setup reuses valid credentials. For an unpacked source install, omit `--extension-id`; setup derives its different ID from the public key in `extension/manifest.json`.
 
 When deliberately moving an existing relay to a different extension ID, add `--replace-extension-id`, then restart that relay. This preserves credentials while keeping exact origin checks.
 
@@ -153,7 +152,8 @@ To choose another configuration path or local relay port:
 
 ```bash
 python setup.py --config /absolute/private/path/config.json \
-  --port 18211 --relay-url ws://127.0.0.1:18211/extension
+  --port 18211 --relay-url ws://127.0.0.1:18211/extension \
+  --extension-id aamifgeomffmmmdbkkdmiikemmeaihho
 ```
 
 Pass that same config path to the relay and client, and set `HERMES_LOCAL_BROWSER_CONFIG` for the MCP server. For a remote browser, point Serve at the new local port too.
@@ -172,20 +172,18 @@ python relay.py --config /absolute/private/path/config.json
 
 For a persistent Linux service, use the [systemd instructions](docs/service.md) after the foreground setup works.
 
-### 4. Load the Chrome extension
+### 4. Install and pair the Chrome extension
 
-If Chrome is on another computer, copy the **`extension/` folder** to a permanent location there. You may omit generated `connection.js` and instead transfer the private `pairing.json` file separately. The relay config and Python virtual environment stay on the relay host.
+1. In the intended Chrome profile, open [Local Browser in the Chrome Web Store](https://chromewebstore.google.com/detail/local-browser-ai-browser/aamifgeomffmmmdbkkdmiikemmeaihho) and click **Add to Chrome**.
+2. Open the extension popup. Click **Import pairing file**, choose the private `pairing.json` from setup, then click **Connect my agent**. If Chrome is on another computer, transfer only that pairing file to it. Keep the relay config and Python virtual environment on the relay host. You can also enter the relay URL and pairing token manually.
+3. For custom JavaScript, open `chrome://extensions`, select Local Browser **Details**, and enable **Allow User Scripts** on Chrome 138+. On Chrome 135–137, Developer mode enables the API. Reading pages, filling forms and taking screenshots do not require this toggle.
+4. Confirm the popup says **Connected to your agent**.
 
-1. Open `chrome://extensions` in the intended Chrome profile.
-2. Turn on **Developer mode**.
-3. Click **Load unpacked** and select the `extension/` folder containing `manifest.json`.
-4. Open the extension popup. Click **Import pairing file**, choose the private `pairing.json` from setup, then click **Connect my agent**. You can also enter the relay URL and pairing token manually. A valid legacy `connection.js` is imported once automatically.
-5. For custom JavaScript, open **Details** and enable **Allow User Scripts** on Chrome 138+. On Chrome 135–137, Developer mode enables the API. Reading pages, filling forms and taking screenshots do not require this toggle.
-6. Confirm the popup says **Connected to your agent**.
+**Unpacked development option:** run setup without `--extension-id`, copy the `extension/` folder to a permanent location on the browser computer, then open `chrome://extensions`, enable **Developer mode**, and select **Load unpacked**. Choose the folder containing `manifest.json`, then pair it through the popup as above. A valid legacy `connection.js` is imported once automatically.
 
 ![Local Browser connection setup](docs/store/screenshot-setup.png)
 
-After changing extension files, click **Reload** at `chrome://extensions`. Connection settings persist in this Chrome profile. To change a relay or token, use **Connection settings** in the popup; a legacy file is not re-imported after pairing. Keep one extension connected to each relay.
+Chrome manages updates for the store install. After changing unpacked extension files, click **Reload** at `chrome://extensions`. Connection settings persist in this Chrome profile. To change a relay or token, use **Connection settings** in the popup; a legacy file is not re-imported after pairing. Keep one extension connected to each relay.
 
 ### 5. Check the connection
 
